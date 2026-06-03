@@ -180,7 +180,7 @@ npm install && npm run build
 
 Copy `.cursor/mcp.json.example` to `.cursor/mcp.json` and set your `DATALENS_DATABASE_URL`.
 
-See **[vscode-extension/README.md](vscode-extension/README.md)** for all MCP tools (schema scan, documentation, queries, data quality, AI chat).
+See **[vscode/README.md](vscode/README.md)** for Cursor, VS Code, and Antigravity setup (paths + config). MCP tools: schema scan, documentation, queries, data quality, AI chat.
 
 ---
 

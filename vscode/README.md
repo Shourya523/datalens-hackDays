@@ -1,183 +1,272 @@
-# 🔌 DataLens AI: VS Code Extension & MCP Server
+# DataLens AI — IDE Setup (Cursor, VS Code, Antigravity)
 
-> **Implementation lives in [`../vscode-extension/`](../vscode-extension/)** — MCP server + VS Code extension package.
+Use the **DataLens MCP server** to explore schemas, run queries, generate documentation, and check data quality from your IDE.
 
-This directory documents the original blueprint. The working MCP server and extension are in `vscode-extension/`. See **[vscode-extension/README.md](../vscode-extension/README.md)** for setup.
-
-By integrating DataLens AI directly into the IDE, developers can visualize schemas, inspect graph relationships, and chat with their database metadata without leaving their active coding workspace.
+Implementation: [`../vscode-extension/`](../vscode-extension/) (MCP server + optional VS Code extension).
 
 ---
 
-## 🌟 The Vision
+## 1. Build the MCP server (everyone)
 
-Bringing database intelligence directly to the developer's fingertips:
-- **Zero Context-Switching:** Visualize ER diagrams and graph databases inline.
-- **Secure Credentials:** Store connection strings securely in VS Code's built-in `SecretStorage`.
-- **AI-Powered Code Gen:** Chat with schema metadata and insert generated SQL or Cypher directly into the active editor.
+From the **repo root**:
 
----
-
-## 🛠 Feature Mapping: Web App to VS Code Extension
-
-Here is how the core functionalities of the DataLens AI web app map to VS Code's native user interface paradigms:
-
-| Web Feature | VS Code Extension Counterpart | Implementation Technology |
-|:---|:---|:---|
-| **Connection Settings** | VS Code Settings (`settings.json`) + Command Palette | VS Code Configuration API & `SecretStorage` |
-| **Schema Explorer** | Primary Sidebar Tree View | `vscode.TreeDataProvider` |
-| **Interactive ER & Graphs** | Main Editor Webview / Custom Editor | `vscode.WebviewPanel` + React + D3.js/Cytoscape.js |
-| **AI Schema Chat** | Chat View Panel / Copilot Chat participant | VS Code Chat API (`vscode.lm`) / Custom Webview Chat |
-| **Schema Analytics** | Webview Dashboard Tab | HTML/CSS + Tailwind (in Webview) + Chart.js |
-
----
-
-## 📐 Architecture Diagram
-
-Below is the conceptual architecture of the DataLens AI VS Code Extension:
-
-```mermaid
-graph TD
-    %% Extension Architecture
-    subgraph VSCodeIDE [VS Code Editor Host]
-        Explorer[Schema Explorer TreeView]
-        Chat[DataLens Copilot Chat Sidebar]
-        Webview[Interactive ER/Graph Webview Panel]
-    end
-
-    subgraph ExtensionBackend [Extension Host Backend]
-        Scanner[Intelligent Schema Scanner]
-        ConnMgr[Connection Manager & SecretStore]
-        LLMClient[Gemini AI Interface]
-    end
-
-    subgraph ExternalServices [Target Databases & APIs]
-        PG[(PostgreSQL / MySQL)]
-        N4J[(Neo4j Graph DB)]
-        Gemini[Gemini 3 Flash API]
-    end
-
-    %% Interactions
-    Explorer -->|Requests Schema| Scanner
-    Webview -->|Requests Visuals| Scanner
-    ConnMgr -->|Provides Decrypted URIs| Scanner
-    Scanner -->|Inspects Metadata| PG
-    Scanner -->|Inspects Node/Edge Types| N4J
-    Chat -->|Queries Context| LLMClient
-    LLMClient -->|Sends Metadata Schema| Gemini
-    Chat -->|Inserts Code| VSCodeIDE
+```bash
+cd vscode-extension/mcp-server
+npm install
+npm run build
 ```
 
----
-
-## 📂 Proposed Project Structure
-
-To build this extension, the workspace layout is structured as follows:
+Entry point (use this path in all configs below):
 
 ```text
-vscode-extension/
-├── .vscode/
-│   ├── launch.json          # Debug configurations for Extension Host
-│   └── tasks.json           # Watch/Build scripts
-├── src/
-│   ├── extension.ts         # Main activation and command registrations
-│   ├── connectionManager.ts # SecretStorage handling for DB URIs
-│   ├── schemaScanner.ts     # Metadata extraction logic (PostgreSQL/MySQL/Neo4j)
-│   ├── views/
-│   │   ├── explorerView.ts  # TreeDataProvider for sidebar schema list
-│   │   └── diagramWebview.ts# WebView controller to render ER diagrams/Graphs
-│   └── ai/
-│       └── copilotProvider.ts# VS Code Chat View or LLM client handler
-├── media/                   # Icons, stylesheets, and React bundle for Webview
-│   ├── er-diagram.css
-│   └── main.js
-├── package.json             # Manifest declaring commands, views, and settings
-├── tsconfig.json            # TypeScript configuration
-└── webpack.config.js        # Bundles extension and webview components
+<REPO_ROOT>/vscode-extension/mcp-server/dist/index.js
+```
+
+Example on Windows:
+
+```text
+C:/Users/You/datalens-hackDays/vscode-extension/mcp-server/dist/index.js
 ```
 
 ---
 
-## 🚀 Step-by-Step Implementation Plan
+## 2. Environment variables (`.env`)
 
-### Phase 1: Setup & Activation
-1. **Initialize Project:**
-   Bootstrap the Extension using the Yeoman Generator:
-   ```bash
-   npx -y yo generator-code --quick --typescript --git --install-dependencies
-   ```
-2. **Define Contributions in `package.json`:**
-   Add custom activation events, sidebar views, settings, and commands:
-   ```json
-   "activationEvents": [
-     "onView:datalens-explorer",
-     "onCommand:datalens.visualizeSchema"
-   ],
-   "contributes": {
-     "viewsContainers": {
-       "activitybar": [
-         {
-           "id": "datalens-sidebar",
-           "title": "DataLens AI",
-           "icon": "media/icon.svg"
-         }
-       ]
-     },
-     "views": {
-       "datalens-sidebar": [
-         {
-           "id": "datalens-explorer",
-           "name": "Database Schema Explorer"
-         }
-       ]
-     },
-     "commands": [
-       {
-         "command": "datalens.connectDb",
-         "title": "DataLens: Connect to Database"
-       },
-       {
-         "command": "datalens.visualizeSchema",
-         "title": "DataLens: Show Interactive ER Diagram"
-       }
-     ]
-   }
-   ```
+Create or edit **`.env`** at the repo root. The MCP server loads it automatically when `cwd` is the repo root.
 
-### Phase 2: Secure Database Connection
-1. **Secure Storage:** Store database connection URIs using VS Code's `context.secrets` (`SecretStorage`) to prevent credentials from leaking in plain-text `settings.json`.
-2. **Database Driver Integration:** Reuse the existing Drizzle/Driver logic from the web application backend to fetch tables, columns, constraints, indices, and neo4j nodes/edges directly inside Node.js environment.
+| Variable | Purpose |
+|----------|---------|
+| `DATALENS_DATABASE_URL` | PostgreSQL/MySQL connection URI |
+| `DATABASE_URL` | Fallback if `DATALENS_DATABASE_URL` is unset |
+| `GEMINI_API_KEY_MCP` | AI docs / SQL generation (MCP only — not the web app key) |
+| `GROQ_API_KEY_MCP` | Schema chat / query analysis (MCP only) |
+| `DOTENV_CONFIG_QUIET` | Set to `true` if you still see MCP init errors (dotenv stdout) |
 
-### Phase 3: Sidebar Tree View (Schema Explorer)
-- Implement `vscode.TreeDataProvider` to build a drill-down schema explorer in the sidebar:
-  - 📁 **Database Name**
-    - 📁 **Tables** (e.g., `customers`, `orders`)
-      - 🔑 `customer_id` (PK, text)
-      - 🔗 `email` (Unique, text)
-    - 📁 **Relationships** (e.g., `customers ── orders`)
-
-### Phase 4: Webview-Based Visualizer (ER & Graph Visualizations)
-- Create a `WebviewPanel` that loads a bundled React/HTML application.
-- Use **D3.js** or **Cytoscape.js** to draw the interactive ER diagram and Neo4j graph nodes.
-- Implement post-message communication to pass scanned schema data from the extension host into the Webview:
-  ```typescript
-  // In extension host
-  webviewPanel.webview.postMessage({ command: 'loadSchema', data: schemaMetadata });
-  ```
-
-### Phase 5: Inline AI Schema Chat (DataLens Copilot)
-- Build an AI sidebar panel or integrate with the **VS Code Chat API** (Copilot Chat extension point).
-- Provide the Gemini LLM with the context of the scanned database schema (no rows data, only structural DDL/JSON).
-- Add a "Write to Document" or "Run in Editor" button to let users inject generated SQL or Cypher statements directly into their open files:
-  ```typescript
-  vscode.window.activeTextEditor?.edit(editBuilder => {
-      editBuilder.insert(position, generatedQuery);
-  });
-  ```
+**Web app keys** (`GEMINI_API_KEY`, `GROQ_API_KEY`) stay separate so MCP usage does not hit the same rate limits.
 
 ---
 
-## 🔒 Security Best Practices for the Extension
+## 3. Cursor
 
-- **No Data Leakage:** Send only the schema metadata (table structures, types, labels) to the LLM (Gemini 3 Flash). Do not transmit actual table records or customer data.
-- **Credential Safety:** Use `context.secrets.store()` rather than VS Code global state or plain configuration settings to save user connection strings.
-- **Local Sandbox Execution:** Run the connection scans locally within the extension backend process instead of sending connection URIs to third-party endpoints.
+### Where to enable
+
+**Settings → Tools & MCP** → toggle **datalens** **ON** (green dot, ~15 tools).
+
+### Config file
+
+| Location | Path |
+|----------|------|
+| **Project** | `<REPO_ROOT>/.cursor/mcp.json` |
+
+Copy the example:
+
+```bash
+cp .cursor/mcp.json.example .cursor/mcp.json
+```
+
+### Example `.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "datalens": {
+      "command": "node",
+      "args": ["${workspaceFolder}/vscode-extension/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+`${workspaceFolder}` resolves to the cloned repo when the workspace is open. Secrets come from `.env` at the repo root.
+
+Optional explicit env (instead of `.env`):
+
+```json
+"env": {
+  "DOTENV_CONFIG_QUIET": "true",
+  "DATALENS_DATABASE_URL": "postgresql://...",
+  "GEMINI_API_KEY_MCP": "...",
+  "GROQ_API_KEY_MCP": "..."
+}
+```
+
+### Use in chat
+
+Open **Agent** chat and ask:
+
+```text
+Use datalens to check connection status and list my database tables
+```
+
+---
+
+## 4. Google Antigravity
+
+Antigravity does **not** read `.cursor/mcp.json`.
+
+### Where to enable
+
+1. Open the **Agent** side panel.
+2. Click **`...`** (top of panel) → **MCP Servers**.
+3. **Manage MCP Servers** → **View raw config**.
+4. Ensure **datalens** is listed, `"disabled": false`, then **Refresh**.
+
+Also: **Ctrl+,** → **Customizations** → **Installed MCP Servers** → **Refresh**.
+
+### Config file
+
+| OS | Path |
+|----|------|
+| **Windows** | `C:\Users\<You>\.gemini\config\mcp_config.json` |
+| **Mac / Linux** | `~/.gemini/config/mcp_config.json` |
+
+Use **absolute paths** (Antigravity does not support `${workspaceFolder}`).
+
+### Example `mcp_config.json`
+
+Merge into the existing `mcpServers` object:
+
+```json
+{
+  "mcpServers": {
+    "datalens": {
+      "command": "node",
+      "args": [
+        "C:/Users/You/datalens-hackDays/vscode-extension/mcp-server/dist/index.js"
+      ],
+      "cwd": "C:/Users/You/datalens-hackDays",
+      "disabled": false,
+      "env": {
+        "DOTENV_CONFIG_QUIET": "true"
+      }
+    }
+  }
+}
+```
+
+Replace `C:/Users/You/datalens-hackDays` with your real clone path. Forward slashes work on Windows.
+
+Full template: [`../vscode-extension/antigravity-mcp.example.json`](../vscode-extension/antigravity-mcp.example.json)
+
+### Troubleshooting Antigravity
+
+| Error | Fix |
+|-------|-----|
+| `invalid character 'â' looking for beginning of value` | dotenv printed to stdout — set `DOTENV_CONFIG_QUIET=true` and rebuild MCP server |
+| `0 tools` | Wrong path to `dist/index.js`, or server not built |
+| Server disabled | Set `"disabled": false` and refresh |
+
+---
+
+## 5. Visual Studio Code (GitHub Copilot)
+
+Requires VS Code with **GitHub Copilot** and MCP support.
+
+### Where to enable
+
+- **Command Palette** → `MCP: List Servers` → start **datalens**
+- Or open `.vscode/mcp.json` and use **Start Server** above the server block
+- **Extensions** view → **MCP SERVERS** section
+
+### Config file
+
+| Scope | Path |
+|-------|------|
+| **Workspace** (share with team) | `<REPO_ROOT>/.vscode/mcp.json` |
+| **User** | Command Palette → `MCP: Open User Configuration` |
+
+Copy the example:
+
+```bash
+cp .vscode/mcp.json.example .vscode/mcp.json
+```
+
+### Example `.vscode/mcp.json`
+
+```json
+{
+  "servers": {
+    "datalens": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/vscode-extension/mcp-server/dist/index.js"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "DOTENV_CONFIG_QUIET": "true"
+      }
+    }
+  }
+}
+```
+
+VS Code uses `"servers"` (not `"mcpServers"`). Optional: add `inputs` for secrets instead of `.env` — see [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration).
+
+### Use in Copilot Chat
+
+Ask in **Copilot Chat** (agent mode):
+
+```text
+Use datalens to get schema and list all tables
+```
+
+---
+
+## 6. MCP tools reference
+
+| Tool | Description |
+|------|-------------|
+| `datalens_connect` | Save a database URI |
+| `datalens_connection_status` | Active + saved connections |
+| `datalens_get_schema` | Full schema scan |
+| `datalens_get_table_details` | One table’s columns |
+| `datalens_get_relationships` | Foreign keys |
+| `datalens_run_query` | Read-only SQL (PostgreSQL) |
+| `datalens_get_table_quality` | Column completeness / uniqueness |
+| `datalens_get_data_quality` | Orphans, duplicates, health score |
+| `datalens_get_structural_analysis` | Hubs, isolated tables, depth |
+| `datalens_get_dashboard_metrics` | Schema analytics |
+| `datalens_generate_documentation` | AI Markdown docs |
+| `datalens_get_documentation` | Read generated docs |
+| `datalens_chat_with_schema` | Ask about schema |
+| `datalens_ask_ai_query` | Natural language → SQL |
+| `datalens_analyze_query` | Query impact analysis |
+
+---
+
+## 7. Quick comparison
+
+| IDE | Config file | Path style | Enable UI |
+|-----|-------------|------------|-----------|
+| **Cursor** | `.cursor/mcp.json` | `${workspaceFolder}/...` | Settings → Tools & MCP → toggle |
+| **Antigravity** | `~/.gemini/config/mcp_config.json` | Absolute `C:/...` + `cwd` | Agent `...` → Manage MCP Servers |
+| **VS Code** | `.vscode/mcp.json` | `${workspaceFolder}/...` | MCP: List Servers / Start Server |
+
+---
+
+## 8. VS Code extension (optional)
+
+For command-palette helpers (connect DB, open config snippet):
+
+```bash
+cd vscode-extension
+npm install
+npm run build:mcp
+npm run compile
+```
+
+Press **F5** to run the Extension Development Host.
+
+---
+
+## 9. Security
+
+- Do not commit `.env` (already in `.gitignore`).
+- MCP blocks destructive SQL (`DROP`, `DELETE`, `UPDATE`, etc.).
+- Use `GEMINI_API_KEY_MCP` / `GROQ_API_KEY_MCP` for MCP so the web app keys stay separate.
+
+---
+
+## 10. More docs
+
+- MCP server details: [`../vscode-extension/README.md`](../vscode-extension/README.md)
+- Web app: [`../README.md`](../README.md)

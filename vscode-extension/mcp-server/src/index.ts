@@ -11,7 +11,8 @@ for (const envPath of [
   resolve(process.cwd(), ".env"),
 ]) {
   if (existsSync(envPath)) {
-    config({ path: envPath });
+    // quiet: required — dotenv 17 logs to stdout by default and breaks MCP stdio JSON
+    config({ path: envPath, quiet: true });
     break;
   }
 }
@@ -380,7 +381,6 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("DataLens AI MCP server running on stdio");
 }
 
 main().catch((err) => {
