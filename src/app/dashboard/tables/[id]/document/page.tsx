@@ -11,7 +11,6 @@ import { getOrGenerateBusinessReport } from "@/src/actions/rag";
 import { Button } from "@/src/components/ui/button";
 import NextLink from "next/link";
 import { authClient } from "@/src/components/landing/auth";
-import { createNotionPage } from "@/src/actions/notion";
 
 interface QualityIssue {
     severity: "critical" | "warning";
@@ -232,55 +231,6 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTable, setActiveTable] = useState("");
-    const [notionState, setNotionState] = useState<'idle' | 'connecting' | 'creating' | 'formatting' | 'redirecting'>('idle');
-
-    const handleNotionSync = async () => {
-        if (!report) return;
-        try {
-            setNotionState('connecting');
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            setNotionState('creating');
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            setNotionState('formatting');
-            const notionData = {
-                domain: report.domain,
-                overview: report.overview,
-                keyFindings: report.keyFindings || [],
-                recommendations: report.recommendations || [],
-                dataGovernance: report.dataGovernance || "",
-                overallAssessment: report.overallAssessment || "",
-                tableCount: report.tableCount,
-                columnCount: report.columnCount,
-                totalRows: report.totalRows,
-                healthScore: report.healthScore,
-                piiCount: report.piiCount,
-                relationsCount: report.relationsCount,
-                qualityIssues: report.qualityIssues || [],
-                tables: docs.filter(d => d.tableName !== "__business_report__").map(d => ({
-                    tableName: d.tableName,
-                    content: d.content
-                }))
-            };
-            const res = await createNotionPage(notionData);
-            if (res.success && res.url) {
-                setNotionState('redirecting');
-                await new Promise((resolve) => setTimeout(resolve, 1200));
-                if (res.isMock) {
-                    const { toast } = await import("sonner");
-                    toast.info("No NOTION_API_KEY or NOTION_PAGE_ID found in configuration. Opening mockup workspace.");
-                }
-                window.open(res.url, "_blank");
-            } else {
-                const { toast } = await import("sonner");
-                toast.error(res.error || "Notion synchronization failed.");
-            }
-        } catch (err: any) {
-            const { toast } = await import("sonner");
-            toast.error(err.message || "An unexpected error occurred during Notion Sync.");
-        } finally {
-            setNotionState('idle');
-        }
-    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -764,15 +714,6 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                             </div>
                             <div className="flex flex-wrap gap-2.5 items-center shrink-0 self-start sm:self-center">
                                 <Button 
-                                    onClick={handleNotionSync}
-                                    className="no-print gap-2 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-black hover:to-slate-900 text-white border border-slate-800 hover:border-slate-700 font-bold h-9 shadow-md shadow-slate-950/20 transition-all active:scale-95"
-                                >
-                                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M4.2 3h15.6c.7 0 1.2.5 1.2 1.2v15.6c0 .7-.5 1.2-1.2 1.2H4.2c-.7 0-1.2-.5-1.2-1.2V4.2C3 3.5 3.5 3 4.2 3zm2.3 3.5v11h1.7v-7.1l6 7.1h1.8v-11h-1.7v7.1l-6-7.1H6.5z"/>
-                                    </svg>
-                                    Open with Notion
-                                </Button>
-                                <Button 
                                     onClick={() => window.print()} 
                                     className="no-print gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold h-9 shadow-md shadow-indigo-500/10"
                                 >
@@ -905,84 +846,6 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                         ))}
                     </div>
                 </div>
-            {notionState !== 'idle' && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 no-print">
-                    <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-muted">
-                            <div 
-                                className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-500 transition-all duration-1000"
-                                style={{
-                                    width: 
-                                        notionState === 'connecting' ? '25%' :
-                                        notionState === 'creating' ? '50%' :
-                                        notionState === 'formatting' ? '75%' : '100%'
-                                }}
-                            />
-                        </div>
-                        
-                        <div className="flex flex-col items-center text-center space-y-6 pt-4">
-                            <div className="relative">
-                                <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center animate-pulse">
-                                    <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M4.2 3h15.6c.7 0 1.2.5 1.2 1.2v15.6c0 .7-.5 1.2-1.2 1.2H4.2c-.7 0-1.2-.5-1.2-1.2V4.2C3 3.5 3.5 3 4.2 3zm2.3 3.5v11h1.7v-7.1l6 7.1h1.8v-11h-1.7v7.1l-6-7.1H6.5z"/>
-                                    </svg>
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center animate-spin">
-                                    <Loader2 className="w-3.5 h-3.5 text-primary-foreground" />
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <h3 className="text-lg font-bold text-foreground capitalize">
-                                    {notionState === 'connecting' && "Connecting to Notion"}
-                                    {notionState === 'creating' && "Creating Reference Document"}
-                                    {notionState === 'formatting' && "Formatting Schema Blocks"}
-                                    {notionState === 'redirecting' && "Redirecting to Workspace"}
-                                </h3>
-                                <p className="text-xs text-muted-foreground max-w-xs">
-                                    {notionState === 'connecting' && "Establishing secure handshake with Notion API..."}
-                                    {notionState === 'creating' && "Generating structured document pages..."}
-                                    {notionState === 'formatting' && "Structuring headings, tables, and constraint lists..."}
-                                    {notionState === 'redirecting' && "Success! Launching your Notion page..."}
-                                </p>
-                            </div>
-                            
-                            <div className="w-full space-y-2 pt-2 text-left">
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-muted-foreground">Handshake Status</span>
-                                    <span className={notionState !== 'connecting' ? 'text-emerald-500 font-bold' : 'text-primary animate-pulse font-medium'}>
-                                        {notionState === 'connecting' ? 'Running' : 'Done ✓'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-muted-foreground">Page Initialization</span>
-                                    <span className={
-                                        notionState === 'connecting' ? 'text-muted-foreground/40' :
-                                        notionState === 'creating' ? 'text-primary animate-pulse font-medium' : 'text-emerald-500 font-bold'
-                                    }>
-                                        {notionState === 'connecting' ? 'Pending' : notionState === 'creating' ? 'Running' : 'Done ✓'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-muted-foreground">Schema Block Injection</span>
-                                    <span className={
-                                        notionState === 'connecting' || notionState === 'creating' ? 'text-muted-foreground/40' :
-                                        notionState === 'formatting' ? 'text-primary animate-pulse font-medium' : 'text-emerald-500 font-bold'
-                                    }>
-                                        {notionState === 'connecting' || notionState === 'creating' ? 'Pending' : notionState === 'formatting' ? 'Running' : 'Done ✓'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="text-muted-foreground">Launch Redirect</span>
-                                    <span className={notionState === 'redirecting' ? 'text-primary animate-pulse font-medium' : 'text-muted-foreground/40'}>
-                                        {notionState === 'redirecting' ? 'Redirecting...' : 'Pending'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
             </main>
         </div>
     );
