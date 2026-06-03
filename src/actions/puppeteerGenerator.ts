@@ -65,7 +65,9 @@ export async function generateDocumentationImages(connectionId: string, entityNa
     });
     const page = await browser.newPage();
     await page.setViewport({ width: 1200, height: 1000 });
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+    await page.setContent(fullHtml, {
+  waitUntil: 'load'
+});
 
     const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = 1000;
