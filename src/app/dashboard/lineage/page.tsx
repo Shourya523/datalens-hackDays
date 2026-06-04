@@ -23,7 +23,7 @@ import { authClient } from "@/src/components/landing/auth";
 import { Card } from "../../../components/ui/card";
 import { Loader2, Table2, Network } from "lucide-react";
 
-const HARDCODED_URI = process.env.NEXT_PUBLIC_FALLBACK_URI || ""
+const HARDCODED_URI = process.env.NEXT_PUBLIC_FALLBACK_URI || "";
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
