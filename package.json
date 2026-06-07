@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.80",
     "@fontsource/albert-sans": "^5.2.8",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
@@ -47,6 +48,7 @@
     "@tanstack/react-query": "^5.90.21",
     "@vercel/analytics": "^2.0.1",
     "@xyflow/react": "^12.10.1",
+    "ai": "^6.0.197",
     "autoprefixer": "^10.4.24",
     "better-auth": "1.6.14",
     "class-variance-authority": "^0.7.1",

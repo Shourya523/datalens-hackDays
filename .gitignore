@@ -49,5 +49,4 @@ vscode-extension/dist/
 !.cursor/mcp.json
 !.cursor/mcp.json.example
 
-/scripts
 /data

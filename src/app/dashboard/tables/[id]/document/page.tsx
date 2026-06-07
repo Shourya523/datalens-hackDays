@@ -198,11 +198,10 @@ function QualityIssuesCard({ report }: { report: ReportData }) {
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                 {report.qualityIssues.map((issue, i) => (
                     <div key={i} className="flex flex-col sm:flex-row sm:items-start gap-3 p-3 rounded-xl bg-card border border-border/45 hover:border-border hover:shadow-xs transition-all">
-                        <span className={`text-[8px] font-bold tracking-wider px-2 py-0.5 rounded uppercase self-start sm:mt-0.5 ${
-                            issue.severity === "critical" 
-                                ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                        <span className={`text-[8px] font-bold tracking-wider px-2 py-0.5 rounded uppercase self-start sm:mt-0.5 ${issue.severity === "critical"
+                                ? "bg-destructive/10 text-destructive border border-destructive/20"
                                 : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                        }`}>
+                            }`}>
                             {issue.severity}
                         </span>
                         <div className="space-y-1">
@@ -324,14 +323,14 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
         if (doc.tableName === "__business_report__") return false;
         const query = searchQuery.toLowerCase().trim();
         if (!query) return true;
-        
+
         // Match table name
         if (doc.tableName.toLowerCase().includes(query)) return true;
-        
+
         // Match fields or types
         const fields = getTableFields(doc.content);
-        const hasMatchedField = fields.some(f => 
-            f.name.toLowerCase().includes(query) || 
+        const hasMatchedField = fields.some(f =>
+            f.name.toLowerCase().includes(query) ||
             f.type.toLowerCase().includes(query)
         );
         if (hasMatchedField) return true;
@@ -435,31 +434,28 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                         {nodes.map((node) => {
                             const isActive = activeTable === node.name;
                             return (
-                                <g 
+                                <g
                                     key={node.name}
                                     transform={`translate(${node.x}, ${node.y})`}
                                     onClick={() => scrollToSection(`table-section-${node.name}`, node.name)}
                                     className="cursor-pointer group/node"
                                 >
-                                    <circle 
-                                        r={isActive ? 22 : 18} 
-                                        className={`transition-all duration-300 ${
-                                            isActive 
-                                                ? "fill-primary stroke-primary-foreground stroke-2" 
+                                    <circle
+                                        r={isActive ? 22 : 18}
+                                        className={`transition-all duration-300 ${isActive
+                                                ? "fill-primary stroke-primary-foreground stroke-2"
                                                 : "fill-muted stroke-border stroke-1 hover:stroke-primary hover:fill-muted/90"
-                                        }`}
+                                            }`}
                                     />
-                                    <Database 
-                                        className={`w-4 h-4 -translate-x-2 -translate-y-2 pointer-events-none transition-colors ${
-                                            isActive ? "text-primary-foreground" : "text-muted-foreground group-hover/node:text-primary"
-                                        }`} 
+                                    <Database
+                                        className={`w-4 h-4 -translate-x-2 -translate-y-2 pointer-events-none transition-colors ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover/node:text-primary"
+                                            }`}
                                     />
-                                    <text 
+                                    <text
                                         y="30"
-                                        textAnchor="middle" 
-                                        className={`text-[9px] font-mono select-none font-semibold transition-colors ${
-                                            isActive ? "fill-primary font-bold" : "fill-muted-foreground group-hover/node:fill-foreground"
-                                        }`}
+                                        textAnchor="middle"
+                                        className={`text-[9px] font-mono select-none font-semibold transition-colors ${isActive ? "fill-primary font-bold" : "fill-muted-foreground group-hover/node:fill-foreground"
+                                            }`}
                                     >
                                         {node.name}
                                     </text>
@@ -726,11 +722,10 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">General</p>
                         <button
                             onClick={() => scrollToSection("executive-overview", "")}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${
-                                activeTable === "" 
-                                    ? "bg-primary text-primary-foreground shadow-xs font-semibold" 
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 ${activeTable === ""
+                                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                                     : "text-muted-foreground hover:bg-muted/50"
-                            }`}
+                                }`}
                         >
                             <BookOpen className="w-3.5 h-3.5" /> Executive Overview
                         </button>
@@ -752,7 +747,7 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                 const matchedFields = query
                                     ? fields.filter(f => f.name.toLowerCase().includes(query) || f.type.toLowerCase().includes(query))
                                     : fields;
-                                
+
                                 const isExpanded = !!(query || expandedTables[doc.tableName]);
                                 const hasFields = fields.length > 0;
 
@@ -765,11 +760,10 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                                     toggleTableExpand(doc.tableName);
                                                 }
                                             }}
-                                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-mono transition-all flex items-center justify-between group ${
-                                                activeTable === doc.tableName 
-                                                    ? "bg-primary/10 text-primary border border-primary/20 font-bold" 
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-mono transition-all flex items-center justify-between group ${activeTable === doc.tableName
+                                                    ? "bg-primary/10 text-primary border border-primary/20 font-bold"
                                                     : "text-muted-foreground hover:bg-muted/50"
-                                            }`}
+                                                }`}
                                         >
                                             <span className="truncate flex items-center gap-1.5">
                                                 <span className="text-[9px] opacity-50 group-hover:opacity-80 transition-opacity">
@@ -786,17 +780,16 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                             <div className="pl-5 pr-1 py-1 space-y-1 border-l border-border/50 ml-4 transition-all duration-200">
                                                 {matchedFields.map((field) => {
                                                     const isFieldMatch = query && (
-                                                        field.name.toLowerCase().includes(query) || 
+                                                        field.name.toLowerCase().includes(query) ||
                                                         field.type.toLowerCase().includes(query)
                                                     );
                                                     return (
-                                                        <div 
+                                                        <div
                                                             key={field.name}
-                                                            className={`text-[10px] font-mono flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-muted/30 transition-colors ${
-                                                                isFieldMatch 
-                                                                    ? "text-primary bg-primary/5 font-semibold" 
+                                                            className={`text-[10px] font-mono flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-muted/30 transition-colors ${isFieldMatch
+                                                                    ? "text-primary bg-primary/5 font-semibold"
                                                                     : "text-muted-foreground/80"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <span className="truncate" title={field.name}>{field.name}</span>
                                                             <span className="text-[8px] opacity-60 ml-2 truncate max-w-[80px]" title={field.type}>{field.type}</span>
@@ -836,8 +829,8 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                 </p>
                             </div>
                             <div className="flex flex-wrap gap-2.5 items-center shrink-0 self-start sm:self-center">
-                                <Button 
-                                    onClick={() => window.print()} 
+                                <Button
+                                    onClick={() => window.print()}
                                     className="no-print gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold h-9 shadow-md shadow-indigo-500/10"
                                 >
                                     <Printer className="w-4 h-4" /> Download PDF
@@ -857,12 +850,12 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                         <div className="relative flex items-center justify-center w-24 h-24 mb-2">
                                             <svg className="w-full h-full transform -rotate-90">
                                                 <circle cx="48" cy="48" r={radius} className="stroke-muted fill-none" strokeWidth="6" />
-                                                <circle 
-                                                    cx="48" 
-                                                    cy="48" 
-                                                    r={radius} 
-                                                    className="stroke-primary fill-none transition-all duration-1000 ease-out" 
-                                                    strokeWidth="6" 
+                                                <circle
+                                                    cx="48"
+                                                    cy="48"
+                                                    r={radius}
+                                                    className="stroke-primary fill-none transition-all duration-1000 ease-out"
+                                                    strokeWidth="6"
                                                     strokeDasharray={circumference}
                                                     strokeDashoffset={strokeOffset}
                                                     strokeLinecap="round"
@@ -887,11 +880,11 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                                     const colors = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-yellow-500", "bg-pink-500"];
                                                     const color = colors[idx % colors.length];
                                                     return (
-                                                        <div 
-                                                            key={type} 
-                                                            className={`${color} h-full`} 
-                                                            style={{ width: `${pct}%` }} 
-                                                            title={`${type}: ${count} (${pct.toFixed(1)}%)`} 
+                                                        <div
+                                                            key={type}
+                                                            className={`${color} h-full`}
+                                                            style={{ width: `${pct}%` }}
+                                                            title={`${type}: ${count} (${pct.toFixed(1)}%)`}
                                                         />
                                                     );
                                                 })}
