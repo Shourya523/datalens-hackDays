@@ -417,7 +417,28 @@ export async function deleteConnection(connectionId: string, userId: string) {
     const result = await db.delete(connections).where(and(eq(connections.id, connectionId), eq(connections.userId, userId))).returning({ deletedId: connections.id });
     if (result.length === 0) return { success: false, error: "Unauthorized." };
     revalidatePath("/dashboard/connections");
+    revalidatePath("/dashboard/tables");
 
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateConnectionName(connectionId: string, userId: string, newName: string) {
+  try {
+    const result = await db.update(connections)
+      .set({ name: newName })
+      .where(and(eq(connections.id, connectionId), eq(connections.userId, userId)))
+      .returning({ updatedId: connections.id });
+      
+    if (result.length === 0) return { success: false, error: "Unauthorized or connection not found." };
+    
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/tables");
+    revalidatePath("/dashboard/studio");
+    revalidatePath("/dashboard/impact");
+    
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
