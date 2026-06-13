@@ -355,37 +355,56 @@ Respond with:
     }
 }
 
-export async function askAiAction(userQuestion: string, connectionId: string) {
+export async function askAiAction(userQuestion: string, connectionId: string, userId?: string) {
     try {
+        let contextString = "";
+
+        // 1. Try Qdrant vector search first
         const contextResult = await getRelevantTables(userQuestion, connectionId);
 
-        if (!contextResult.success) {
-            return { success: false, error: contextResult.error || "Failed to fetch schema context." };
+        if (contextResult.success && contextResult.data && contextResult.data.length > 0) {
+            contextString = contextResult.data.map((c: any) => c.content).join("\n");
+        } else {
+            // 2. Fallback: pull live schema directly from the DB (no sync required)
+            console.log("[askAiAction] Qdrant empty — falling back to live schema inspection.");
+            const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+            let uri = FALLBACK_URI;
+            if (connectionId !== "demo-neon-db" && userId) {
+                const { getConnectionStringById: getUri } = await import("./db");
+                uri = (await getUri(connectionId, userId)) || FALLBACK_URI;
+            }
+            const metaResult = await getDatabaseMetadata(uri);
+            if (!metaResult.success || !metaResult.data) {
+                return { success: false, error: "Could not load schema context. Try syncing the connection first." };
+            }
+            const tableMap: Record<string, string[]> = {};
+            metaResult.data.schema.forEach((col: any) => {
+                const t = col.table_name;
+                if (!tableMap[t]) tableMap[t] = [];
+                tableMap[t].push(`${col.column_name} (${col.data_type})`);
+            });
+            contextString = Object.entries(tableMap)
+                .map(([table, cols]) => `Table "${table}" contains columns: ${cols.join(", ")}.`)
+                .join("\n");
         }
-        if (!contextResult.data || contextResult.data.length === 0) {
-            return { success: false, error: "Could not find relevant schema context." };
-        }
-
-        const contextString = contextResult.data
-            .map((c: any) => c.content)
-            .join("\n");
 
         const model = genAI.getGenerativeModel({
             model: "gemini-3.1-flash-lite",
-            systemInstruction: `You are a PostgreSQL expert. Given a schema, write a query. 
-            CRITICAL: Large dataset detected (500k+ rows). Always append 'LIMIT 100' 
-            to SELECT statements to prevent timeouts.`
+            systemInstruction: `You are a database expert and data analyst. Given a schema context, answer the user's question clearly.
+            If the question asks for SQL, write a precise read-only SELECT query with LIMIT 100.
+            If the question is analytical, provide a concise business-level answer.
+            CRITICAL: Large dataset detected (500k+ rows). Always append 'LIMIT 100' to SELECT statements to prevent timeouts.`
         });
 
         const prompt = `
-            SCHEMA CONTEXT:
-            ${contextString}
+SCHEMA CONTEXT:
+${contextString}
 
-            USER QUESTION:
-            ${userQuestion}
+USER QUESTION:
+${userQuestion}
 
-            TASK:
-            Return a PostgreSQL code block. Include 'LIMIT 100' unless the user asks for a specific count/limit.
+TASK:
+Answer the question. If SQL is needed, return a PostgreSQL code block with LIMIT 100.
         `;
 
         const result = await model.generateContent(prompt);

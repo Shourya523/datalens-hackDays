@@ -517,3 +517,103 @@ export async function analyzeImpactAction(query: string) {
     return { success: false, error: err.message || "Groq Analysis Failed" };
   }
 }
+
+// ---------------------------------------------------------------------------
+// inspectConnectionSchema
+// Replaces scratch_inspect.ts & scratch_app_db.ts — runs live schema inspection
+// (tables, PK/FK metadata, row counts, sample rows) via the connection ID slug.
+// ---------------------------------------------------------------------------
+export async function inspectConnectionSchema(
+  connectionId: string,
+  userId?: string,
+  options: { sampleRows?: number; includeSamples?: boolean } = {}
+) {
+  const { sampleRows = 3, includeSamples = true } = options;
+  const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+
+  try {
+    // 1. Resolve the connection URI
+    let uri = "";
+    if (connectionId === "demo-neon-db" || !userId) {
+      uri = FALLBACK_URI;
+    } else {
+      uri = (await getConnectionStringById(connectionId, userId)) || FALLBACK_URI;
+    }
+    if (!uri) return { success: false, error: "Could not resolve connection URI." };
+
+    const postgres = await getPostgres();
+    const sql = postgres(uri, { max: 1, connect_timeout: 10 });
+
+    try {
+      // 2. All tables
+      const tables = await sql`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name;
+      `;
+
+      // 3. Full column metadata
+      const columns = await sql`
+        SELECT
+          table_name,
+          column_name,
+          data_type,
+          is_nullable,
+          column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, ordinal_position;
+      `;
+
+      // 4. PK + FK relationships
+      const pkFkInfo = await sql`
+        SELECT
+          tc.table_name AS source_table,
+          kcu.column_name AS source_column,
+          tc.constraint_type,
+          ccu.table_name AS target_table,
+          ccu.column_name AS target_column
+        FROM
+          information_schema.table_constraints AS tc
+          JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          LEFT JOIN information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+        WHERE tc.table_schema = 'public' AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
+        ORDER BY tc.table_name, tc.constraint_type;
+      `;
+
+      // 5. Row counts + optional sample rows per table
+      const tableDetails: Record<string, { rowCount: number; sample: any[]; columns: any[] }> = {};
+
+      for (const t of tables) {
+        const name = t.table_name as string;
+        const [countRow] = await sql.unsafe(`SELECT COUNT(*) as row_count FROM "${name}"`);
+        const rowCount = Number(countRow.row_count);
+        const sample = includeSamples
+          ? await sql.unsafe(`SELECT * FROM "${name}" LIMIT ${sampleRows}`)
+          : [];
+        const tableCols = (columns as any[]).filter((c) => c.table_name === name);
+        tableDetails[name] = { rowCount, sample: JSON.parse(JSON.stringify(sample)), columns: tableCols };
+      }
+
+      return {
+        success: true,
+        data: {
+          connectionId,
+          uri: uri.replace(/:[^:@]+@/, ":***@"), // redact password
+          tableCount: tables.length,
+          tables: tables.map((t) => t.table_name),
+          pkFkRelationships: JSON.parse(JSON.stringify(pkFkInfo)),
+          tableDetails,
+        },
+      };
+    } finally {
+      await sql.end();
+    }
+  } catch (error: any) {
+    console.error("[inspectConnectionSchema] Error:", error);
+    return { success: false, error: error.message };
+  }
+}
